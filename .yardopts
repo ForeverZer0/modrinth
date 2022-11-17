@@ -1,0 +1,7 @@
+--readme README.md
+--title 'Modrinth Documentation'
+--charset utf-8
+--markup markdown
+--plugin yard-link_stdlib
+--protected
+lib/**/*.rb

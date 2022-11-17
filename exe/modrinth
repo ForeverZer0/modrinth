@@ -1,0 +1,57 @@
+#!/usr/bin/env ruby
+
+# require 'modrinth'
+require 'thor'
+require 'tty-prompt'
+require 'tty-progressbar'
+
+class ModrinthCLI < Thor
+  
+  CONFIG_NAME = '.modrinth'
+
+  package_name 'modrinth'
+  # default_command :interactive
+
+  desc 'search', 'Search for projects'
+  option(:query, type: :string, aliases: '-q', desc: 'The search string')
+  option(:facet, type: :string, aliases: '-f', repeatable: true, desc: 'Optimized filter(s) for the results (multiple permitted)')
+  option(:sort, type: :string, enum: %w(relevance downloads follows newest updated), aliases: '-s', desc: 'The method used for sorting the results (default: relevance')
+  def search
+
+  end
+
+  desc 'install', 'Installs a mod'
+  option(:output, aliases: '-o', desc: 'Specifies the output directory')
+  option(:name, aliases: '-n', desc: 'The name of the mod to install')
+  option(:id, aliases: '-i', desc: 'The unique ID of the mod to install')
+  def install()
+
+  end
+
+  desc 'update', 'Checks managed mods for newer versions'
+  def update()
+
+  end
+
+  desc 'uninstall', 'Uninstalls an existing Minecraft mod'
+  def uninstall()
+
+  end
+
+  desc 'query', 'Displays information about a mod'
+  def query
+
+  end
+
+end
+
+    #   | `:categories`   | The loader or category to filter the results from.
+    #   | `:version`      | The Minecraft version to filter the results from.
+    #   | `:license`      | The license ID to filter the results from.
+    #   | `:project_type` | The project type to filter the results from.
+
+
+begin
+  ModrinthCLI.start(ARGV)
+rescue Interrupt
+end
