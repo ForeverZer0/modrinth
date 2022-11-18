@@ -10,18 +10,21 @@ module Modrinth
   module Net
 
     ##
-    # Describes the rate-limit for calls to the Modrinth API.
-    # 
-    # @note The rate limit for all users of the API is currently `300` per minute. 
-    #   If you have a use case requiring a higher limit, please [contact Modrinth](mailto:admin@modrinth.com).
-    #
-    # @attribute [r] limit 
-    #   @return [Integer] the maximum number of requests that can be made in a minute.
-    # @attribute [r] remaining
-    #   @return [Integer] the number of requests remaining in the current ratelimit window.
-    # @attribute [r] reset 
-    #   @return [Integer] the time in seconds until the ratelimit window resets.
-    RateLimit = Struct.new(:limit, :remaining, :reset)
+    # Flag indicating if SSL encryption will be used for remote API calls.
+    # @return [Boolean]
+    SSL = URI(Route::API_BASE).scheme == 'https'
+
+    ##
+    # @return [Integer] the maximum number of requests that can be made in a minute.
+    attr_reader :rate_limit
+
+    ##
+    # @return [Integer] the number of requests remaining in the current rate-limit window.
+    attr_reader :rate_remaining
+
+    ##
+    # @return [Integer] the time in seconds until the ratelimit window resets.
+    attr_reader :rate_reset
 
     ##
     # @return [Hash{String,String}] default headers to supply with each API call.
@@ -34,7 +37,7 @@ module Modrinth
     
     ##
     # @return [String] the base URL for the Modrinth REST API.
-    BASE_URL = 'https://api.modrinth.com/v2'
+    API_BASE = 'https://api.modrinth.com/v2'
 
     ##
     # Calculates the digest of a file with 160 bits.
@@ -57,50 +60,71 @@ module Modrinth
     ##
     # Executes a GET request with the given parameters.
     # @param method [String] The remote endpoint for the method to call.
+    # @param format [Array<Object>] Format arguments to pass to the route builder.
     # @param params [Hash] A hash containing the REST query.
     #
     # @note The rate limit is tracked internally and updated with each call from the response headers.
     # @return [Hash{Symbol,Object},nil] the JSON response, or `nil` if a non-successful response was returned.
-    def self.get(method, params = nil)
+    def self.get(method, *format, **params)
 
-      uri = URI(BASE_URL + method)
-      uri.query = URI.encode_www_form(params) if params
-
-      response = ::Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+      uri = Route.build(method, *format, **params)
+      response = ::Net::HTTP.start(uri.hostname, uri.port, use_ssl: SSL) do |http|
         request = ::Net::HTTP::Get.new(uri.to_s, HEADERS)
         http.request(request)
       end
 
-      return nil unless response.is_a?(::Net::HTTPSuccess)
       update_rates(response)
+      return nil unless response.is_a?(::Net::HTTPSuccess)
       JSON.parse(response.body, symbolize_names: true)
     end
 
     ##
     # Executes a POST request with the given parameters.
     # @param method [String] The remote endpoint for the method to call.
-    # @param params [Hash] A hash containing the REST query.
     # @param payload [Hash] A hash containing the JSON payload defining the message body.
+    # @param format [Array<Object>] Format arguments to pass to the route builder.
+    # @param params [Hash] A hash containing the REST query.
     #
     # @note The rate limit is tracked internally and updated with each call from the response headers.
     # @return [Hash{Symbol,Object},nil] the JSON response, or `nil` if a non-successful response was returned.
-    def self.post(method, params, payload)
+    def self.post(method, payload, *format, **params)
 
-      uri = URI(BASE_URL + method)
-      uri.query = URI.encode_www_form(params)
-      response = ::Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+      uri = Route.build(method, *format, **params)
+      response = ::Net::HTTP.start(uri.hostname, uri.port, use_ssl: SSL) do |http|
         request = ::Net::HTTP::Post.new(uri, HEADERS)
         request.content_type = 'application/json'
         request.body = payload.to_json
         http.request(request)
       end
 
-      return nil unless response.is_a?(::Net::HTTPSuccess)
       update_rates(response)
-      JSON.parse(response.body, symbolize_names: true)
+      return nil unless response.is_a?(::Net::HTTPSuccess)
+      JSON.parse(response.body, symbolize_names: true)  
     end
 
-    private
+    ##
+    # Parses a string formatted in ISO-8601 format into a {DateTime} object.
+    # @param string [String] The string to parse.
+    # @param required [Boolean] Flag indicating if an error should be thrown when parsing fails.
+    # @raise [Date::Error] when _required_ is `true` and an error occurs.
+    def self.parse_date(string, required = true)
+      begin
+        return DateTime.iso8601(string)
+      rescue Date::Error
+        return nil unless required
+        raise
+      end
+    end
+
+    ##
+    # Help method to convert a JSON array of "tags" into Ruby objects.
+    # @param klass [Class] The class of the tag.
+    # @param route [String] The relative endpoint to retrieve the tags.
+    # @return [Array<Model>] the tags.
+    def self.tags(klass, route)
+      json = get(route)
+      json&.map { |hash| klass.from_json(hash) }
+    end
 
     ##
     # Updates the rate limit.
@@ -108,8 +132,11 @@ module Modrinth
     # @param response [::Net::HTTPResponse] The response object returned by the API call.
     # @return [void]
     def self.update_rates(response)
-      args = %w(x_ratelimit_limit x_ratelimit_remaining x_ratelimit_reset)
-      @rate_limit = RateLimit.new(*args.map { |arg| response[arg].to_i})
+      if response.is_a?(::Net::HTTPResponse)
+        @rate_limit = response['x_ratelimit_limit'].to_i
+        @rate_remaining = response['x_ratelimit_remaining'].to_i
+        @rate_reset = response['x_ratelimit_reset'].to_i
+      end
     end
 
   end

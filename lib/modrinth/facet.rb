@@ -31,6 +31,7 @@ module Modrinth
     #   | `:version`      | The Minecraft version to filter the results from.
     #   | `:license`      | The license ID to filter the results from.
     #   | `:project_type` | The project type to filter the results from.
+    #
     # @param value [String,Symbol]
     #
     # @see TYPES
@@ -50,7 +51,7 @@ module Modrinth
 
     ##
     # Retrieves the {Facet} represented in JavaScript Object Notation (JSON).
-    # @param options [Symbol,nil] Options for generated JSON. Unused.
+    # @param options [Symbol,nil] Unused.
     # @return [String] the {Facet} as a JSON string.
     def to_json(options = nil)
       to_s
@@ -61,7 +62,7 @@ module Modrinth
       ##
       # Parses a new {Facet} from the specified _string_.
       # @param string [String] The {String} to parse.
-      # @return [Facet,nil] a new {Facet} instance of `nil` if parsing failed.
+      # @return [Facet,nil] a new {Facet} instance or `nil` if parsing failed.
       def parse(string)
         return nil unless /^(\w+):"?(.*?)"?$/.match(str)
         new($1, $2)
@@ -73,6 +74,7 @@ module Modrinth
       # @param values [String,Array<String>] The value(s) to be created.
       # @return [Facet,Array<Facet>] when _values_ is a single string, returns the newly created {Facet},
       #   otherwise returns an array of the facets when multiple values are given.
+      # @raise [ArgumentError] when no values are specified.
       def categories(*values)
         create(:categories, values)
       end
@@ -83,6 +85,7 @@ module Modrinth
       # @param values [String,Array<String>] The value(s) to be created.
       # @return [Facet,Array<Facet>] when _values_ is a single string, returns the newly created {Facet},
       #   otherwise returns an array of the facets when multiple values are given.
+      # @raise [ArgumentError] when no values are specified.
       def versions(*values)
         create(:versions, values)
       end
@@ -93,6 +96,7 @@ module Modrinth
       # @param values [String,Array<String>] The value(s) to be created.
       # @return [Facet,Array<Facet>] when _values_ is a single string, returns the newly created {Facet},
       #   otherwise returns an array of the facets when multiple values are given.
+      # @raise [ArgumentError] when no values are specified.
       def license(*values)
         create(:license, values)
       end
@@ -103,6 +107,7 @@ module Modrinth
       # @param values [String,Array<String>] The value(s) to be created.
       # @return [Facet,Array<Facet>] when _values_ is a single string, returns the newly created {Facet},
       #   otherwise returns an array of the facets when multiple values are given.
+      # @raise [ArgumentError] when no values are specified.
       def project_type(values)
         create(:project_type, values)
       end
@@ -114,7 +119,9 @@ module Modrinth
       # @param facet_type [Symbol] The type of facet to create.
       # @param values [Array<String>] The values of the facets.
       # @return [Facet,Array<Facet>] The newly created facet(s).
+      # @raise [ArgumentError] when no values are specified.
       def create(facet_type, values)
+        raise(ArgumentError, 'no facet value specified') unless values.size > 0
         result = values.map { |value| new(facet_type, value) }
         values.size > 1 ? result : result.first
       end

@@ -29,6 +29,7 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
+
   spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'sord', '~> 5.0'
   spec.add_development_dependency 'yard', '~> 0.9'

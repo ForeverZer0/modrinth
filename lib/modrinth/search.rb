@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
-
-
 require_relative 'facet'
-require_relative 'filter'
-require_relative 'search_result'
 
 module Modrinth
 
@@ -46,7 +42,7 @@ module Modrinth
 
     ##
     # @return [String] the search query.
-    attr_accessor :query
+    attr_reader :query
 
     ##
     # An array containing optimized filters for search results.
@@ -69,9 +65,18 @@ module Modrinth
     attr_reader :facets
     
     ##
-    # An array containing the filters for search results.
+    # A string expression defining filters for search results. 
     #
-    # @return [Array<Filter>]
+    # Filters are string expressions that can used to create fine-grained criteria for
+    # a search query, but are likewise more complicated and significantly slower than
+    # using facets. Use filters when there isn't an available facet for your needs.
+    #
+    # @example
+    #   filter = 'categories="fabric" AND (categories="technology" OR categories="utility")'
+    #   search = Modrinth.search(filter: filter) 
+    #
+    # @return [String,nil]
+    # @see https://docs.meilisearch.com/learn/advanced/filtering_and_faceted_search.html#using-filters Using Filters
     attr_reader :filters
 
     ##
@@ -91,6 +96,7 @@ module Modrinth
     # @param query [String,nil] The query string to seach for.
     # @param page_size [Integer] The page size for paginated results.
     # @param params [Hash{Symbol,Object}] JSON objects representing the object.
+    # @see Mordinth.search
     def initialize(query = nil, page_size = 10, **params)
       @page_size = page_size.to_i.clamp(1, 100)
       @offset = 0
@@ -210,14 +216,6 @@ module Modrinth
       results
     end
 
-    ##
-    # Parses filter values.
-    # @param value [Array<Filter>,Filter,String] The {Filter} value.
-    # @return [Array<Facet>]
-    def parse_filters(value)
-      # TODO
-    end
-
     ## 
     # @api private
     # Executes the `/search` API call, and returns the results as a JSON object.
@@ -234,15 +232,15 @@ module Modrinth
 
       params['offset'] = offset
       params['limit'] = @page_size
-      params['filters'] = @filters.to_json unless @filters.empty?
+      params['filters'] = @filters if @filters
 
-      json = Modrinth::Net.get('/search', params)
+      json = Modrinth::Net.get(Route::SEARCH, **params)
       return nil unless json
 
       @offset = json[:offset]
       @page_size = json[:limit]
       @total = json[:total_hits]
-      json[:hits].map { |hit| SearchResult.new(**hit) }
+      json[:hits].map { |hit| SearchResult.from_json(hit) }
     end
 
   end
